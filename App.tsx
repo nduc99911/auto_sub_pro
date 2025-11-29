@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Upload, Play, Pause, Download, Languages, Save, RefreshCw, Wand2, FileVideo, Film, Palette, FileText, Settings, X, Key } from 'lucide-react';
+import { Upload, Play, Pause, Download, Languages, Save, RefreshCw, Wand2, FileVideo, Film, Palette, FileText, Settings, X, Key, FolderDown, FolderUp } from 'lucide-react';
 import VideoPlayer from './components/VideoPlayer';
 import SubtitleEditor from './components/SubtitleEditor';
 import StyleControls from './components/StyleControls';
@@ -146,7 +146,7 @@ export default function App() {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo]);
 
-  const saveProject = () => {
+  const saveProjectToLocal = () => {
     const project: Project = {
       id: 'current',
       name: 'Untitled Project',
@@ -155,7 +155,19 @@ export default function App() {
       style,
     };
     localStorage.setItem('autoSubProject', JSON.stringify(project));
-    alert('Project saved successfully!');
+    alert('Project saved to browser storage!');
+  };
+
+  const handleExportProject = () => {
+    const project: Project = {
+      id: 'export',
+      name: videoState.file?.name || 'project',
+      lastModified: Date.now(),
+      cues,
+      style,
+    };
+    const content = JSON.stringify(project, null, 2);
+    downloadFile(`${project.name.replace(/\.[^/.]+$/, "")}_project.json`, content, 'application/json');
   };
 
   const handleSaveApiKey = (key: string) => {
@@ -174,23 +186,37 @@ export default function App() {
     }
   };
 
-  const handleSubtitleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
         try {
-          const parsedCues = parseSRT(content);
-          if (parsedCues.length > 0) {
-            handleCuesChange(parsedCues);
-            alert(`Imported ${parsedCues.length} subtitles.`);
+          if (file.name.endsWith('.json')) {
+              // Import Project File
+              const project: Project = JSON.parse(content);
+              if (Array.isArray(project.cues) && project.style) {
+                  setCues(project.cues);
+                  setStyle(project.style);
+                  setHistory({ past: [], future: [] });
+                  alert(`Project "${project.name}" loaded successfully.`);
+              } else {
+                  alert('Invalid project file format.');
+              }
           } else {
-            alert('No valid subtitles found in file.');
+              // Import Subtitle File (SRT/VTT)
+              const parsedCues = parseSRT(content);
+              if (parsedCues.length > 0) {
+                handleCuesChange(parsedCues);
+                alert(`Imported ${parsedCues.length} subtitles.`);
+              } else {
+                alert('No valid subtitles found in file.');
+              }
           }
         } catch (error) {
           console.error(error);
-          alert('Failed to parse subtitle file.');
+          alert('Failed to parse file.');
         }
       };
       reader.readAsText(file);
@@ -456,12 +482,20 @@ export default function App() {
             </button>
           </div>
           
-           <button 
-                onClick={saveProject}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-xs font-medium transition-colors border border-zinc-700"
-            >
-              <Save size={14} /> Save Project
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+             <button 
+                  onClick={saveProjectToLocal}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-xs font-medium transition-colors border border-zinc-700"
+              >
+                <Save size={14} /> Save (Local)
+              </button>
+              <button 
+                  onClick={handleExportProject}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-xs font-medium transition-colors border border-zinc-700"
+              >
+                <FolderDown size={14} /> Export JSON
+              </button>
+          </div>
         </div>
       </div>
 
@@ -477,9 +511,9 @@ export default function App() {
               <input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
             </label>
             <label className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded-md cursor-pointer transition-all">
-                <FileText size={16} />
-                <span className="text-sm font-medium">Import Subs</span>
-                <input type="file" accept=".srt,.vtt" className="hidden" onChange={handleSubtitleUpload} />
+                <FolderUp size={16} />
+                <span className="text-sm font-medium">Import / Load</span>
+                <input type="file" accept=".srt,.vtt,.json" className="hidden" onChange={handleFileImport} />
             </label>
             {videoState.file && (
               <span className="text-xs text-zinc-400 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800 truncate max-w-[200px]">
@@ -627,9 +661,9 @@ export default function App() {
                         <input type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
                     </label>
                     <label className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full cursor-pointer transition-all font-medium border border-zinc-700">
-                        <FileText size={18} />
-                        <span>Import SRT/VTT</span>
-                        <input type="file" accept=".srt,.vtt" className="hidden" onChange={handleSubtitleUpload} />
+                        <FolderUp size={18} />
+                        <span>Import / Load</span>
+                        <input type="file" accept=".srt,.vtt,.json" className="hidden" onChange={handleFileImport} />
                     </label>
                 </div>
                 <p className="text-xs text-zinc-600 mt-4">

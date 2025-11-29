@@ -1,0 +1,5 @@
+{
+  "name": "Copy of AutoSub AI",
+  "description": "Professional automatic movie subtitling using Gemini AI. Upload videos, auto-transcribe, translate, edit styles, and export.",
+  "requestFramePermissions": []
+}
